@@ -1,0 +1,43 @@
+/[Ll]ibrary/
+/[Temp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Cc]logs/
+/[MemoryCaptures]/
+
+# Asset server cache
+/Assets/AssetStoreTools*
+
+# Visual Studio / Rider / VS Code の設定ファイル
+.vs/
+/*.csproj
+/*.unityproj
+/*.sln
+/*.suo
+/*.tmp
+/*.user
+/*.userprefs
+/*.pidb
+/*.booproj
+/*.svd
+/*.pdb
+/*.opendb
+/*.VC.db
+
+# OSが自動生成するファイル
+.DS_Store
+Thumbs.db
+
+# Crashlytics などのログ
+syslog.txt
+
+# Unityのバグレポート
+CrashReports/
+
+# URP/HDRPなどのパッケージが生成する一時ファイル
+.bm/
+
+
+
+Assets/Original/ja-jpSDF.asset

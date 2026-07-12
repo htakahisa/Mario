@@ -1,0 +1,15 @@
+{
+  "WorkspaceID": "dv.ws.e1f17366-67c1-42ea-a6c4-5ab5f8c7c134",
+  "RepoID": "dv.repo.7e8c5ab6-321b-4210-99a9-52b360373798",
+  "Path": "F:\\unity_pj\\Mario",
+  "AccountID": "Google_117313649100351941058",
+  "BranchID": "dv.branch.1",
+  "BranchName": "main",
+  "CommitID": "dv.commit.1",
+  "Paused": false,
+  "ShouldDownload": false,
+  "RepoName": "MarioMan",
+  "ReadOnly": false,
+  "DigestMethod": "sha1",
+  "OrganizationTier": "UNKNOWN"
+}
