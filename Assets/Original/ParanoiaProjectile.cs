@@ -4,7 +4,7 @@ using UnityEngine;
 public class ParanoiaProjectile : MonoBehaviour
 {
     private Vector3 targetWorldPos;
-    private float speed = 6f; // パラノイアが飛ぶ速度（見た目の補間用）
+    private float speed = 0.3f; // パラノイアが飛ぶ速度（見た目の補間用）
     private float gridRadius = 1.2f; // ★物理コライダーの代わりに、グリッド距離で巻き込み判定を行う
     private int remainingTicks = 300; // ★LifetimeをTickで管理（3.0秒 = 30Tick）
     private int blindTickDuration = 50; // ★ブラインド時間をTickで管理（5.0秒 = 50Tick）
@@ -28,16 +28,6 @@ public class ParanoiaProjectile : MonoBehaviour
         targetWorldPos.z = 0f;
     }
 
-    /// <summary>
-    /// 💡 見た目のぬるっとした直線移動だけをUpdateで処理（描画用）
-    /// </summary>
-    void Update()
-    {
-        if (!isInitialized) return;
-
-        // 目的地に向かって直線移動（壁を貫通）
-        transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, speed * Time.deltaTime);
-    }
 
     /// <summary>
     /// ★【新設】GameManagerから1Tick（0.1秒）ごとに呼び出される判定ロジック
@@ -45,6 +35,9 @@ public class ParanoiaProjectile : MonoBehaviour
     public void UpdateProjectileTick()
     {
         if (!isInitialized) return;
+
+        // 目的地に向かって直線移動（壁を貫通）
+        transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, speed);
 
         remainingTicks--;
         if (remainingTicks <= 0)

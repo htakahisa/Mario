@@ -1,3 +1,4 @@
+using System; // ★ 追加: Actionデリゲートを使用するため
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -5,6 +6,9 @@ using UnityEngine.InputSystem;
 public class TestManager : MonoBehaviour
 {
     public static TestManager Instance { get; private set; }
+
+    // ★ 追加: ロガーに「誰が」「どんな行動を」「どこに」起こしたかを伝えるためのイベント
+    public event Action<Agent, string, Vector3Int, Vector3Int> OnActionExecuted;
 
     [SerializeField] private Grid grid;
 
@@ -15,7 +19,7 @@ public class TestManager : MonoBehaviour
 
     [Header("--- Selection & Hover UI ---")]
     [SerializeField] private GameObject selectionRing;    // ★事前に用意したゲームオブジェクトをアタッチ（テクスチャ動的生成を排除）
-    [SerializeField] private GameObject hoverCursor;     // ★事前に用意したゲームオブジェクトをアタッチ
+    [SerializeField] private GameObject hoverCursor;      // ★事前に用意したゲームオブジェクトをアタッチ
     private SpriteRenderer ringSr;
 
     [Header("--- Game Rules ---")]
@@ -135,7 +139,7 @@ public class TestManager : MonoBehaviour
             if (Keyboard.current.qKey.wasPressedThisFrame) ExecuteSelectAbilityAction(selectedAgent, "Paranoia");
             if (Keyboard.current.eKey.wasPressedThisFrame) ExecuteSelectAbilityAction(selectedAgent, "ReconBolt");
 
-            SpikeManager sm = Object.FindFirstObjectByType<SpikeManager>();
+            SpikeManager sm = UnityEngine.Object.FindFirstObjectByType<SpikeManager>();
             if (sm != null)
             {
                 if (Keyboard.current.gKey.wasPressedThisFrame && selectedAgent.hasSpike) ExecuteDropSpikeAction(selectedAgent, sm);
@@ -197,6 +201,9 @@ public class TestManager : MonoBehaviour
     {
         if (agent == null || agent.isDead) return;
         agent.SetTargetGridPosition(targetGrid);
+
+        // ★ 追加: イベント発火
+        OnActionExecuted?.Invoke(agent, "Move", targetGrid, Vector3Int.zero);
     }
 
     public void ExecuteSelectAbilityAction(Agent agent, string abilityName)
@@ -220,12 +227,18 @@ public class TestManager : MonoBehaviour
             if (agent.paranoiaCharges <= 0) return;
             agent.paranoiaCharges--;
             CastParanoiaFromPool(agent, agent.gridPosition, targetGrid);
+
+            // ★ 追加: イベント発火
+            OnActionExecuted?.Invoke(agent, "Paranoia", Vector3Int.zero, targetGrid);
         }
         else if (abilityName == "ReconBolt")
         {
             if (agent.reconBoltCharges <= 0) return;
             agent.reconBoltCharges--;
             CastReconBoltFromPool(agent.gridPosition, targetGrid, agent);
+
+            // ★ 追加: イベント発火
+            OnActionExecuted?.Invoke(agent, "ReconBolt", Vector3Int.zero, targetGrid);
         }
 
         CancelAbilityAiming();
@@ -235,6 +248,9 @@ public class TestManager : MonoBehaviour
     {
         if (agent == null || sm == null) return;
         sm.DropSpike(agent.gridPosition);
+
+        // ★ 追加: イベント発火
+        OnActionExecuted?.Invoke(agent, "DropSpike", Vector3Int.zero, Vector3Int.zero);
     }
 
     public void ExecutePickupSpikeAction(Agent agent, SpikeManager sm)
@@ -243,6 +259,9 @@ public class TestManager : MonoBehaviour
         if (sm.currentState == SpikeManager.SpikeState.Dropped && agent.gridPosition == sm.droppedGridPos)
         {
             sm.PickupSpike(agent);
+
+            // ★ 追加: イベント発火
+            OnActionExecuted?.Invoke(agent, "PickupSpike", Vector3Int.zero, Vector3Int.zero);
         }
     }
 
@@ -252,10 +271,13 @@ public class TestManager : MonoBehaviour
 
         if (agent.isEnemy != isPlayerAttacker && agent.hasSpike)
         {
-            MapManager mm = Object.FindFirstObjectByType<MapManager>();
+            MapManager mm = UnityEngine.Object.FindFirstObjectByType<MapManager>();
             if (mm != null && mm.IsPlantableArea(agent.gridPosition))
             {
                 sm.StartPlantSpike(agent.gridPosition, agent);
+
+                // ★ 追加: イベント発火 (設置)
+                OnActionExecuted?.Invoke(agent, "Plant", Vector3Int.zero, Vector3Int.zero);
             }
         }
         else if (agent.isEnemy == isPlayerAttacker && sm.currentState == SpikeManager.SpikeState.Planted)
@@ -263,6 +285,9 @@ public class TestManager : MonoBehaviour
             if (Vector3Int.Distance(agent.gridPosition, sm.plantedGridPos) <= 1.5f)
             {
                 sm.StartDefuseSpike(agent);
+
+                // ★ 追加: イベント発火 (解除)
+                OnActionExecuted?.Invoke(agent, "Defuse", Vector3Int.zero, Vector3Int.zero);
             }
         }
     }
@@ -297,7 +322,7 @@ public class TestManager : MonoBehaviour
         ReconBoltProjectile proj = reconBoltPool.Find(p => p != null && !p.gameObject.activeSelf);
         if (proj != null)
         {
-            MapManager mm = Object.FindFirstObjectByType<MapManager>();
+            MapManager mm = UnityEngine.Object.FindFirstObjectByType<MapManager>();
             proj.owner = agent;
             proj.gameObject.SetActive(true); // プールから有効化する処理を追加
             proj.Launch(startWorld, targetWorld, mm);
@@ -317,7 +342,7 @@ public class TestManager : MonoBehaviour
 
     private void CheckBattleEnd()
     {
-        Agent[] allAgents = Object.FindObjectsByType<Agent>(FindObjectsSortMode.None);
+        Agent[] allAgents = UnityEngine.Object.FindObjectsByType<Agent>(FindObjectsSortMode.None);
         int playerCount = 0;
         int enemyCount = 0;
 

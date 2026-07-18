@@ -1,6 +1,7 @@
 using JetBrains.Annotations;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.U2D;
 using static Platformer.Core.Simulation;
 using static UnityEditor.ShaderGraph.Internal.KeywordDependentCollection;
 
@@ -106,6 +107,9 @@ public class Agent : MonoBehaviour
     private bool pendingRecon = false;
     private Vector3Int pendingAbilityTargetGrid = Vector3Int.zero;
     public bool isMovingAnimation = false; // 🔥 アニメーション中かどうかのフラグ
+    private Vector3Int lastPositionForStuckCheck;
+    private int samePositionTickCount = 0;
+    private const int STUCK_TIMEOUT_TICKS = 15; // 約15～30Tick（数秒間）同じ場所にいたらスタックとみなす
 
     // 外部から「アニメーション中か」を確認できるようにプロパティ化
     public bool IsMovingAnimation => isMovingAnimation;
@@ -127,6 +131,7 @@ public class Agent : MonoBehaviour
     {
         mapManager = MapManager.Instance;
         spriteRenderer = GetComponent<SpriteRenderer>();
+        spriteRenderer.color = Color.white;
 
         // 現在のワールド座標からグリッド座標を確定
         gridPosition = Vector3Int.RoundToInt(transform.position);
@@ -159,7 +164,16 @@ public class Agent : MonoBehaviour
 
     void Update()
     {
-        if (isDead) return;
+        if (isDead)
+        {
+            spriteRenderer.color = Color.clear;
+            teamRenderer.color = Color.clear;
+            hpRenderer.color = Color.clear;
+            Transform indicator = transform.Find("SpikeIndicator");
+            if (indicator != null) Destroy(indicator.gameObject);
+
+            return;
+        }
         
         // 1. HPバーのマスク位置を滑らかに更新
         if (hpMaskTransform != null)
@@ -340,6 +354,22 @@ public class Agent : MonoBehaviour
             }
         }
 
+
+        // 移動処理内のセーフティ例
+        if (currentPath.Count > 0)
+        {
+            Vector3Int nextTarget = currentPath[0];
+            int distance = Mathf.Abs(gridPosition.x - nextTarget.x) + Mathf.Abs(gridPosition.y - nextTarget.y);
+
+            // 次の目的地まで2マス以上離れてしまっていたら、パスがズレているので再計算
+            if (distance > 1)
+            {
+                Debug.LogWarning("パスのズレを検知。リプランニングを実行します。");
+                SetTargetGridPosition(currentPath[currentPath.Count - 1]);
+            }
+        }
+
+
         // ------------------------------------------
         // D. 移動ロジック（1歩先のグリッド座標の決定）
         // ------------------------------------------
@@ -376,7 +406,7 @@ public class Agent : MonoBehaviour
         // ------------------------------------------
         // E. 敵AIの思考ロジック更新（外部AI制御フラグがOFFのときだけ動かす）
         // ------------------------------------------
-        if (!isControlledByExternalAI)
+        if (!isControlledByExternalAI && !isPlayer)
         {
             UpdateEnemyAILogic();
         }
@@ -444,25 +474,45 @@ public class Agent : MonoBehaviour
             }
         }
 
+        // 💡 【Unity側スタック対策】同じ座標にずっと留まっているかチェック
+        if (this.gridPosition == lastPositionForStuckCheck)
+        {
+            samePositionTickCount++;
+            if (samePositionTickCount >= STUCK_TIMEOUT_TICKS)
+            {
+                // 15Tick以上同じ場所で命令がスタックしている場合、強制リセット
+                currentPath.Clear();
+                isMoving = false;
+                lastAssignedTarget = new Vector3Int(-999, -999, -999);
+                samePositionTickCount = 0;
+
+                // 周囲のキャラに道を譲るために、一時的にランダムな隣接マスに退避させる、
+                // または何もせずに次のコマンドを待機させる
+                Debug.LogWarning($"⚠️ 【スタック回避】 {agentName} が同一座標でフリーズしたため、経路を強制クリアしました。");
+            }
+        }
+        else
+        {
+            samePositionTickCount = 0;
+            lastPositionForStuckCheck = this.gridPosition;
+        }
+
         // ルールA：ボットが防衛側 ＆ スパイクが設置済みのとき
         if (isEnemy == tm.isPlayerAttacker)
         {
             if (sm.currentState == SpikeManager.SpikeState.Planted || sm.currentState == SpikeManager.SpikeState.Defusing)
             {
-                if (sm.IsBeingDefused && sm.defusingAgent != this)
-                {
-                    if (currentPath.Count > 0) currentPath.Clear();
-                    isMoving = false;
-                    return;
-                }
 
                 if (Vector3Int.Distance(gridPosition, sm.plantedGridPos) > 1.1f)
                 {
                     if (lastAssignedTarget != sm.plantedGridPos)
                     {
-                        SetTargetGridPosition(sm.plantedGridPos);
-                        lastAssignedTarget = sm.plantedGridPos;
-                        Debug.Log($"<blue>【防衛AI】</blue> {agentName} が解除のために {sm.plantedGridPos} へ急行中。");
+                        if (mapManager.IsWalkableForPathfinding(sm.droppedGridPos, this))
+                        {
+                            SetTargetGridPosition(sm.plantedGridPos);
+                            lastAssignedTarget = sm.plantedGridPos;
+                            Debug.Log($"<blue>【防衛AI】</blue> {agentName} が解除のために {sm.plantedGridPos} へ急行中。");
+                        }
                     }
                 }
                 else
@@ -492,9 +542,12 @@ public class Agent : MonoBehaviour
 
                         if (GetBestPlantPosition().x != -999)
                         {
-                            SetTargetGridPosition(plantPos);
-                            lastAssignedTarget = plantPos;
-                            Debug.Log($"<color=red>【攻撃AI】</color> キャリア {agentName} が設置エリア {plantPos} を自動検出して進軍開始！");
+                            if (mapManager.IsWalkableForPathfinding(sm.droppedGridPos, this))
+                            {
+                                SetTargetGridPosition(plantPos);
+                                lastAssignedTarget = plantPos;
+                                Debug.Log($"<color=red>【攻撃AI】</color> キャリア {agentName} が設置エリア {plantPos} を自動検出して進軍開始！");
+                            }
                         }
                     }
                 }
@@ -504,8 +557,11 @@ public class Agent : MonoBehaviour
             {
                 if (lastAssignedTarget != sm.droppedGridPos || currentPath.Count == 0)
                 {
-                    SetTargetGridPosition(sm.droppedGridPos);
-                    lastAssignedTarget = sm.droppedGridPos;
+                    if (mapManager.IsWalkableForPathfinding(sm.droppedGridPos, this))
+                    {
+                        SetTargetGridPosition(sm.droppedGridPos);
+                        lastAssignedTarget = sm.droppedGridPos;
+                    }
                 }
                 if (gridPosition == sm.droppedGridPos)
                 {
@@ -744,7 +800,6 @@ public class Agent : MonoBehaviour
                 GameManager.Instance.CheckMatchRules(GridTickScheduler.Instance.GetCurrentTick());
             }
 
-            gameObject.SetActive(false);
         }
     }
 
@@ -767,7 +822,6 @@ public class Agent : MonoBehaviour
         shotTickTimer = 0;
 
         spriteRenderer.color = isDead ? Color.gray : Color.white;
-        gameObject.SetActive(!isDead);
     }
 
     public AgentStateData SaveState()
@@ -871,15 +925,27 @@ public class Agent : MonoBehaviour
         if (IsVisibleToPlayer)
         {
             Color currentColor = spriteRenderer.color;
-            teamRenderer.color = new Color(teamRenderer.color.r, teamRenderer.color.g, teamRenderer.color.b, 1f);
+            teamRenderer.color = GetTeamColor();
             hpRenderer.color = new Color(hpRenderer.color.r, hpRenderer.color.g, hpRenderer.color.b, 1f);
             spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 1f);
         }
         else
         {
-            teamRenderer.color = new Color(teamRenderer.color.r, teamRenderer.color.g, teamRenderer.color.b, 0f);
-            hpRenderer.color = new Color(hpRenderer.color.r, hpRenderer.color.g, hpRenderer.color.b, 0f);
-            spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0f);
+            teamRenderer.color = Color.clear;
+            hpRenderer.color = Color.clear;
+            spriteRenderer.color = Color.clear;
+        }
+    }
+
+    public Color GetTeamColor()
+    {
+        if (isPlayer)
+        {
+            return Color.blue;
+        }
+        else
+        {
+            return Color.red;
         }
     }
 
@@ -921,9 +987,9 @@ public class Agent : MonoBehaviour
                 if (sr != null)
                 {
                     TestManager tm = Object.FindFirstObjectByType<TestManager>();
-                    bool playerIsAttacker = (tm != null) ? tm.isPlayerAttacker : true;
+                    bool playerIsAttacker = tm.isPlayerAttacker;
 
-                    if (!playerIsAttacker && isEnemy) sr.enabled = false;
+                    if (playerIsAttacker == !isEnemy) sr.enabled = false;
                     else sr.enabled = true;
 
                     if (CheatRevealed) sr.enabled = true;
@@ -939,6 +1005,7 @@ public class Agent : MonoBehaviour
 
     private List<Vector3Int> FindPath(Vector3Int start, Vector3Int end)
     {
+
         List<Vector3Int> path = new List<Vector3Int>();
 
         if (mapManager != null && !mapManager.IsWalkableForPathfinding(end, this)) return path;

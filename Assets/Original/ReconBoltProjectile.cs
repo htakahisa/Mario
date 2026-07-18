@@ -8,7 +8,7 @@ public class ReconBoltProjectile : MonoBehaviour
     public SpriteRenderer scanEffectRenderer; // ★子オブジェクト等のSpriteRendererをセットしておく
 
     private Vector3 direction;
-    private float speed = 8f;
+    private float speed = 0.8f;
     private float scanRadius = 8f; // 索敵半径（8マス）
     private int remainingTicks = 50; // ★寿命をTick管理（5.0秒 = 50Tick）
     private int revealTickDuration = 30; // ★位置暴露時間をTick管理（3.0秒 = 30Tick）
@@ -62,17 +62,6 @@ public class ReconBoltProjectile : MonoBehaviour
     }
 
     /// <summary>
-    /// 💡 見た目のぬるっとした直線移動だけをUpdateで処理（描画・補間用）
-    /// </summary>
-    void Update()
-    {
-        if (!isInitialized || isStuck) return;
-
-        // 壁に当たっていない間だけ移動
-        transform.position += direction * speed * Time.deltaTime;
-    }
-
-    /// <summary>
     /// ★GameManagerから1Tick（0.1秒）ごとに呼び出される判定・ロジック
     /// </summary>
     public void UpdateProjectileTick()
@@ -88,6 +77,8 @@ public class ReconBoltProjectile : MonoBehaviour
 
         // 2. 飛行中の処理（寿命チェック）
         remainingTicks--;
+        // 壁に当たっていない間だけ移動
+        transform.position += direction * speed;
         if (remainingTicks <= 0)
         {
             DeactivateProjectile();

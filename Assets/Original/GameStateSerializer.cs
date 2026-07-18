@@ -1,65 +1,51 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using System.Xml;
 using UnityEngine;
 using Formatting = Newtonsoft.Json.Formatting;
-
 public class GameStateSerializer : MonoBehaviour
 {
     public static GameStateSerializer Instance { get; private set; }
-
     [Header("--- AI Training Settings ---")]
     [SerializeField] private string experimentName = "fps_ai_v2_perfect";
-    [SerializeField] private bool startFromScratch = true; // 🟩 インスペクターで切り替えるスイッチ！
-
+    [SerializeField] private bool startFromScratch = true;
     [Header("--- Tuning ---")]
     [SerializeField] private int localMapRadius = 5; // エージェント周囲何マス分の地形を送るか
-
     void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
-
-    /// <summary>
-    /// 現在の全ゲーム状況を、Python向けに最適化したJSON文字列にシリアライズする
-    /// </summary>
     public string SerializeCurrentGameState()
     {
         if (GridTickScheduler.Instance == null) return "{}";
-
         var spikeManager = SpikeManager.Instance;
         var mapManager = MapManager.Instance;
         var gameManager = GameManager.Instance;
-
+        var testManager = TestManager.Instance;
         var allAgents = Object.FindObjectsByType<Agent>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-
         var root = new RootStateData
         {
             current_tick = GridTickScheduler.Instance.GetCurrentTick(),
             game_state = new GameStateData
             {
-                is_duel_occurred = TestManager.Instance.isDuelOccurred,
+                is_duel_occurred = testManager != null && testManager.isDuelOccurred,
                 spike_state = spikeManager != null ? spikeManager.currentState.ToString() : "None",
-                bspike_planted = gameManager.hasSpikePlanted(),
+                bspike_planted = gameManager != null && gameManager.hasSpikePlanted(),
                 spike_grid_pos = spikeManager != null ? new Vector2IntData(spikeManager.GetSpikePos().x, spikeManager.GetSpikePos().y) : new Vector2IntData(0, 0),
-                is_round_end = GameManager.Instance.isRoundOver,
-                win_team = GameManager.Instance.win_team,
-                is_defusing = spikeManager.currentState == SpikeManager.SpikeState.Defusing,
-                is_defuse_success = spikeManager.currentState == SpikeManager.SpikeState.Defused,
+                is_round_end = gameManager != null && gameManager.isRoundOver,
+                win_team = gameManager != null ? gameManager.win_team : -1,
+                is_defusing = spikeManager != null && spikeManager.currentState == SpikeManager.SpikeState.Defusing,
+                is_defuse_success = spikeManager != null && spikeManager.currentState == SpikeManager.SpikeState.Defused,
             },
             my_agents = new List<MyAgentData>(),
             enemy_agents = new List<EnemyAgentData>(),
-
             duel_info = new DuelInfoData
             {
-                in_duel = TestManager.Instance.isDuelOccurred,
+                in_duel = testManager != null && testManager.isDuelOccurred,
                 attacker_agent_id = -1,
                 defender_agent_id = -1,
                 win_probability_expected = 0.0f
             },
-
-            // 🔥【初期化】ここから追加
             damage_dealt = 0,
             damage_taken = 0,
             is_kill = false,
@@ -71,105 +57,78 @@ public class GameStateSerializer : MonoBehaviour
             experiment_name = experimentName,
             start_from_scratch = startFromScratch
         };
-
         // ========================================================
-        // 🔥【集計】1Tick内でのイベントフラグを各エージェントから回収
+        // :busts_in_silhouette: エージェントの分類と個別データのシリアライズ
         // ========================================================
-        // AIキャラ
-
-        foreach (var agent in allAgents)
-        {
-            if (agent.isControlledByExternalAI)
-            {
-                continue;
-            }
-            var pData = new MyAgentData
-            {
-                id = agent.agentID,
-                grid_pos = new Vector2IntData(agent.gridPosition.x, agent.gridPosition.y),
-                hp = agent.hp,
-                is_dead = agent.isDead,
-                has_spike = agent.hasSpike,
-                paranoia_charges = agent.paranoiaCharges,
-                recon_bolt_charges = agent.reconBoltCharges,
-                is_in_plant_zone = MapManager.Instance.IsPlantableArea(agent.gridPosition),
-
-                // 空のリストで初期化（Nullエラー防止）
-                visible_enemies_id = new List<int>(),
-                local_map = new List<LocalGridData>()
-            };
-
-            // 視界にいる敵のIDを詰める（もし実装していれば）
-            if (agent.FindVisibleEnemies() != null)
-            {
-                foreach (var enemy in agent.FindVisibleEnemies())
-                {
-                    pData.visible_enemies_id.Add(enemy.agentID);
-                }
-            }
-
-            root.my_agents.Add(pData);
-        }
-
-        // 敵キャラ
-        foreach (var agent in allAgents)
-        {
-            if (!agent.isControlledByExternalAI)
-            {
-                continue;
-            }
-
-            var eData = new EnemyAgentData
-            {
-                id = agent.agentID,
-                grid_pos = new Vector2IntData(agent.gridPosition.x, agent.gridPosition.y),
-                hp = agent.hp,
-                is_dead = agent.isDead,
-
-                // 以下は必要に応じて計算して代入（最初はデフォルト値でもOK）
-                is_visible_to_player = agent.IsVisibleToPlayer,
-                last_known_grid_pos = new Vector2IntData(agent.lastKnownGridPosition.x, agent.lastKnownGridPosition.y),
-            };
-
-            root.enemy_agents.Add(eData);
-        }
-
-
         foreach (var agent in allAgents)
         {
             if (agent == null) continue;
-
-            if (agent.isEnemy) // AI操作チーム (ID: 5~9)
+            // :warning:判定の統一: Python(AI)が操作するエージェントかどうか
+            // もし「外部AI＝学習対象」であれば、ここが true のキャラが「my_agents」になります
+            bool isAiAgent = agent.isControlledByExternalAI;
+            if (isAiAgent)
             {
-                // ※「このTickで発生した値」を取得するプロパティがAgentクラスにあると仮定しています。
-                // 実際の実装に合わせて、agent.deltaDamageDealt や agent.checkTickKill() 等に書き換えてください。
+                var pData = new MyAgentData
+                {
+                    id = agent.agentID,
+                    grid_pos = new Vector2IntData(agent.gridPosition.x, agent.gridPosition.y),
+                    hp = agent.hp,
+                    is_dead = agent.isDead,
+                    has_spike = agent.hasSpike,
+                    paranoia_charges = agent.paranoiaCharges,
+                    recon_bolt_charges = agent.reconBoltCharges,
+                    is_in_plant_zone = mapManager != null && mapManager.IsPlantableArea(agent.gridPosition),
+                    visible_enemies_id = new List<int>(),
+                    // :fire:【修正】ローカルマップデータを取得して代入
+                    local_map = GetLocalMapData(agent.gridPosition, mapManager)
+                };
+                if (agent.FindVisibleEnemies() != null)
+                {
+                    foreach (var enemy in agent.FindVisibleEnemies())
+                    {
+                        if (enemy != null) pData.visible_enemies_id.Add(enemy.agentID);
+                    }
+                }
+                root.my_agents.Add(pData);
+            }
+            else
+            {
+                var eData = new EnemyAgentData
+                {
+                    id = agent.agentID,
+                    grid_pos = new Vector2IntData(agent.gridPosition.x, agent.gridPosition.y),
+                    hp = agent.hp,
+                    is_dead = agent.isDead,
+                    is_visible_to_player = agent.IsVisibleToPlayer,
+                    last_known_grid_pos = new Vector2IntData(agent.lastKnownGridPosition.x, agent.lastKnownGridPosition.y),
+                };
+                root.enemy_agents.Add(eData);
+            }
+            // ========================================================
+            // :bar_chart: 1Tick内のイベントフラグ集計（判定を上記の変数と統一）
+            // ========================================================
+            if (isAiAgent) // AI操作チームの統計
+            {
                 root.damage_dealt += agent.lastTickDamageDealt;
                 root.damage_taken += agent.lastTickDamageTaken;
-
                 if (agent.lastTickDidKill) root.is_kill = true;
                 if (agent.lastTickDidDie) root.is_dead = true;
-
                 if (agent.lastTickDidBlindEnemy) root.is_enemy_blinded = true;
                 if (agent.lastTickDidRevealEnemy) root.is_enemy_revealed = true;
             }
-            else // プレイヤー・味方チーム (ID: 0~4 = AIから見た敵)
+            else // 人間・対戦相手チームの状態（AIから見た敵の状態）
             {
-                // 状態異常のシナジーボーナス用に、現在敵がアビリティの影響下にあるかを監視
-                // ※こちらも agent.isBlinded などのプロパティ名に合わせて調整してください
                 if (agent.lastTickEnemyHasBlind) root.enemy_has_status_blind = true;
                 if (agent.lastTickEnemyHasRevealed) root.enemy_has_status_reveal = true;
             }
         }
-
         string jsonResult = JsonConvert.SerializeObject(root, Formatting.None);
-
         // ========================================================
-        // ♻️【お掃除】送信データを文字化したので、各エージェントの1Tickメモをリセット
+        // :recycle:【クリーンアップ】1Tickメモをリセット
         // ========================================================
         foreach (var agent in allAgents)
         {
             if (agent == null) continue;
-
             agent.lastTickDamageDealt = 0;
             agent.lastTickDamageTaken = 0;
             agent.lastTickDidKill = false;
@@ -177,14 +136,8 @@ public class GameStateSerializer : MonoBehaviour
             agent.lastTickDidBlindEnemy = false;
             agent.lastTickDidRevealEnemy = false;
         }
-
-        // 最後にJSONを返す
         return jsonResult;
     }
-
-    /// <summary>
-    /// エージェント周囲の局所的なマップデータを切り出す
-    /// </summary>
     private List<LocalGridData> GetLocalMapData(Vector3Int centerPos, MapManager mm)
     {
         var localSubMap = new List<LocalGridData>();
@@ -196,15 +149,17 @@ public class GameStateSerializer : MonoBehaviour
             {
                 Vector3Int targetPos = new Vector3Int(centerPos.x + x, centerPos.y + y, 0);
 
-                // ※MapManagerに壁かどうかの判定メソッド(IsWall等)があると仮定
-                bool isWall = false; // mm.IsWall(targetPos); 
+                // 🚨【修正】IsWalkableが「歩ける場所＝True」なら、その『逆（!）』が壁（True）になる
+                // もしIsWalkableが最初から「壁＝True」のメソッドなら ! は不要です
+                bool isWalkable = mm.IsWalkable(targetPos);
+                bool isWall = !isWalkable;
 
                 localSubMap.Add(new LocalGridData
                 {
                     offset_x = x,
                     offset_y = y,
                     is_wall = isWall,
-                    is_cover = isWall // 必要に応じて遮蔽物フラグを細分化
+                    is_cover = isWall // 壁は射線を遮るカバーオブジェクトとしても扱う
                 });
             }
         }

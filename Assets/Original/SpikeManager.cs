@@ -57,16 +57,16 @@ public class SpikeManager : MonoBehaviour
     void Update()
     {
         // 描画（レンダラーの有効・無効）の更新だけはUnityの画面描画に合わせるためUpdateに残す
-        if (currentState == SpikeState.Dropped && spikeWorldObject != null)
-        {
-            SpriteRenderer sr = spikeWorldObject.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                TestManager tm = Object.FindFirstObjectByType<TestManager>();
-                bool playerIsAttacker = (tm != null) ? tm.isPlayerAttacker : true;
-                sr.enabled = playerIsAttacker; // アタッカーなら見える、防衛なら見えない
-            }
-        }
+        //if (currentState == SpikeState.Dropped && spikeWorldObject != null)
+        //{
+        //    SpriteRenderer sr = spikeWorldObject.GetComponent<SpriteRenderer>();
+        //    if (sr != null)
+        //    {
+        //        TestManager tm = Object.FindFirstObjectByType<TestManager>();
+        //        bool playerIsAttacker = (tm != null) ? tm.isPlayerAttacker : true;
+        //        sr.enabled = playerIsAttacker; // アタッカーなら見える、防衛なら見えない
+        //    }
+        //}
     }
 
     /// <summary>

@@ -48,8 +48,74 @@ public class GridTickScheduler : MonoBehaviour
     {
         Time.timeScale = timeScale;
         if (timeCapsuleManager == null) timeCapsuleManager = Object.FindFirstObjectByType<TimeCapsuleManager>();
-        // 学習ループをコルーチンとして開始
-        StartCoroutine(AILearningLoop());
+
+        if (isAiTrainingMode)
+        {
+            // 学習ループをコルーチンとして開始
+            StartCoroutine(AILearningLoop());
+        }
+        else
+        {
+            // 学習ループをコルーチンとして開始
+            StartCoroutine(NormalLoop());
+        }
+    }
+
+    private IEnumerator NormalLoop()
+    {
+        yield return new WaitForSeconds(1f);
+        isSimulationRunning = true;
+
+        // 🔥【新設】ループが始まる前に、今の完全な初期状態を「0 Tick目」として強制セーブ！
+        if (timeCapsuleManager != null)
+        {
+            timeCapsuleManager.SaveCurrentTickSnapshot(0);
+            Debug.Log("[TimeCapsule] 🚀 起動時の完全初期状態（0 Tick目）を保存しました。");
+        }
+
+        ResetRound();
+
+        while (isSimulationRunning)
+        {
+            float tickStartTime = Time.time;
+
+            // 🔥【重要】待機を抜けたら、次のTickのために即座にソケット側のバッファをクリアする！
+            NativeSocketManager.Instance.ClearLatestAction();
+
+            // 5. 1Tick分ゲームの時間を進める
+            currentTickCount++;
+            ExecuteTickObjects();
+
+            // 5. 勝敗ルールのチェック
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.CheckMatchRules(currentTickCount);
+            }
+
+            // 6. 巻き戻し用にこのTickの状態をセーブ
+            if (timeCapsuleManager != null)
+            {
+                timeCapsuleManager.SaveCurrentTickSnapshot(currentTickCount);
+            }
+
+            // 🔥 1Tickが最低でも0.1秒（100ms）を消費するように調整
+            float elapsed = Time.time - tickStartTime;
+            float remainingTime = TickInterval - elapsed;
+
+            if (remainingTime > 0f)
+            {
+                yield return new WaitForSeconds(remainingTime);
+            }
+            else
+            {
+                yield return null;
+            }
+
+            if (GameManager.Instance.isRoundOver)
+            {
+                ResetRound();
+            }
+        }
     }
 
     /// <summary>
@@ -226,6 +292,12 @@ public class GridTickScheduler : MonoBehaviour
             // 3. 特定したエージェントに対して命令を適用する
             switch (action.action_type)
             {
+
+                case "Stay":
+                    // 待機
+                    break;
+
+
                 case "Move":
                     Vector3Int currentPos = targetAgent.gridPosition;
                     Vector3Int targetGridPos = new Vector3Int(
@@ -233,15 +305,12 @@ public class GridTickScheduler : MonoBehaviour
                         currentPos.y + action.grid_y,
                         currentPos.z
                     );
-                    if (MapManager.Instance != null && !MapManager.Instance.IsWall(targetGridPos))
+                    if (MapManager.Instance.IsWalkableForPathfinding(targetGridPos, targetAgent))
                     {
                         targetAgent.SetTargetGridPosition(targetGridPos);
                     }
                     break;
 
-                case "Defuse":
-                    TestManager.Instance.ExecuteSpikeInteractAction(targetAgent, spikeManager);
-                    break;
 
                 case "Paranoia":
                     TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "Paranoia", abilityTarget);
@@ -251,9 +320,10 @@ public class GridTickScheduler : MonoBehaviour
                     TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "ReconBolt", abilityTarget);
                     break;
 
-                case "Stay":
-                    // 待機
+                case "Defuse":
+                    TestManager.Instance.ExecuteSpikeInteractAction(targetAgent, spikeManager);
                     break;
+
             }
         }
     }
