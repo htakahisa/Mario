@@ -41,3 +41,8 @@ CrashReports/
 
 
 Assets/Original/ja-jpSDF.asset
+/Python/__pycache__/
+/Python/models/
+/Python/tb_log/
+
+
