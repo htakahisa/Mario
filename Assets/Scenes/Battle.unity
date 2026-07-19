@@ -712,7 +712,7 @@ PrefabInstance:
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: CheatRevealed
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -773,6 +773,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9062082257334723225, guid: ddf6784a4632cf74589664f2879f0e54,
+        type: 3}
+      propertyPath: m_Color.a
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9062082257334723225, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -1378,6 +1383,11 @@ PrefabInstance:
       propertyPath: isControlledByExternalAI
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3094122161206160194, guid: ddf6784a4632cf74589664f2879f0e54,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3267085284806950475, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: m_Name
@@ -1715,7 +1725,7 @@ PrefabInstance:
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: CheatRevealed
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -2225,6 +2235,7 @@ MonoBehaviour:
   win_team: 0
   matchResult: 0
   allAgents: []
+  playeredAgents: []
 --- !u!1 &942223528
 GameObject:
   m_ObjectHideFlags: 0
@@ -2325,7 +2336,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 198bfb481af71944c89ae5ad28cb8398, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameStateSerializer
-  experimentName: EdwardGaming_15
+  experimentName: EdwardGaming_16
   startFromScratch: 0
   localMapRadius: 10
 --- !u!114 &949859777 stripped
@@ -2637,7 +2648,7 @@ PrefabInstance:
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: CheatRevealed
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -2799,7 +2810,7 @@ PrefabInstance:
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: CheatRevealed
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -15650,6 +15661,56 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1804634141
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1804634143}
+  - component: {fileID: 1804634142}
+  m_Layer: 0
+  m_Name: Organizer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1804634142
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1804634141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a554d2cbeb8b3345b1ba558e87e991f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OrganizedList
+  characters:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+--- !u!4 &1804634143
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1804634141}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.38204, y: -0.38926, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1901465658 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3267085284806950475, guid: ddf6784a4632cf74589664f2879f0e54,
@@ -15990,7 +16051,7 @@ PrefabInstance:
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
       propertyPath: CheatRevealed
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,
         type: 3}
@@ -16590,3 +16651,4 @@ SceneRoots:
   - {fileID: 746137319}
   - {fileID: 400757566}
   - {fileID: 942223531}
+  - {fileID: 1804634143}

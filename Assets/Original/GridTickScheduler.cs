@@ -288,6 +288,7 @@ public class GridTickScheduler : MonoBehaviour
             if (targetAgent == null || targetAgent.isDead) continue;
 
             Vector3Int abilityTarget = new Vector3Int(action.ability_target_x, action.ability_target_y, targetAgent.gridPosition.z);
+            Vector3Int currentPos = targetAgent.gridPosition;
 
             // 3. 特定したエージェントに対して命令を適用する
             switch (action.action_type)
@@ -299,7 +300,6 @@ public class GridTickScheduler : MonoBehaviour
 
 
                 case "Move":
-                    Vector3Int currentPos = targetAgent.gridPosition;
                     Vector3Int targetGridPos = new Vector3Int(
                         currentPos.x + action.grid_x,
                         currentPos.y + action.grid_y,
@@ -308,16 +308,31 @@ public class GridTickScheduler : MonoBehaviour
                     if (MapManager.Instance.IsWalkableForPathfinding(targetGridPos, targetAgent))
                     {
                         targetAgent.SetTargetGridPosition(targetGridPos);
+                        Debug.Log(targetGridPos);
+                    }
+                    else
+                    {
+                        Debug.Log("そこは壁だよ？");
                     }
                     break;
 
 
                 case "Paranoia":
-                    TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "Paranoia", abilityTarget);
+                    Vector3Int targetParanoiaPos = new Vector3Int(
+                        currentPos.x + abilityTarget.x,
+                        currentPos.y + abilityTarget.y,
+                        currentPos.z
+                    );
+                    TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "Paranoia", targetParanoiaPos);
                     break;
 
                 case "ReconBolt":
-                    TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "ReconBolt", abilityTarget);
+                    Vector3Int targetReconBoltPos = new Vector3Int(
+                        currentPos.x + abilityTarget.x,
+                        currentPos.y + abilityTarget.y,
+                        currentPos.z
+                    );
+                    TestManager.Instance.ExecuteCastAbilityAction(targetAgent, "ReconBolt", targetReconBoltPos);
                     break;
 
                 case "Defuse":

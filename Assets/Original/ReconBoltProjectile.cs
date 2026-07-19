@@ -30,7 +30,6 @@ public class ReconBoltProjectile : MonoBehaviour
     /// </summary>
     public void Launch(Vector3 startWorldPos, Vector3 targetWorldPos, MapManager manager)
     {
-
         transform.position = new Vector3(startWorldPos.x, startWorldPos.y, 0f);
         gameObject.SetActive(true);
 

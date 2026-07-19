@@ -3,46 +3,40 @@ using UnityEngine;
 
 public class ParanoiaProjectile : MonoBehaviour
 {
-    private Vector3 targetWorldPos;
-    private float speed = 0.3f; // パラノイアが飛ぶ速度（見た目の補間用）
-    private float gridRadius = 1.2f; // ★物理コライダーの代わりに、グリッド距離で巻き込み判定を行う
-    private int remainingTicks = 300; // ★LifetimeをTickで管理（3.0秒 = 30Tick）
-    private int blindTickDuration = 50; // ★ブラインド時間をTickで管理（5.0秒 = 50Tick）
+    private Vector3 direction; // ★方向ベクトルを保持
+    private float speed = 0.3f;
+    private float gridRadius = 1.2f;
+    private int ticksInitialized = 35;
+    private int remainingTicks = 35;
+    private int blindTickDuration = 50;
     private bool isInitialized = false;
 
     public Agent owner = null;
     private Vector3Int lastCheckedGrid = new Vector3Int(-999, -999, -999);
 
-
-    /// <summary>
-    /// 発射時に初期位置と目的地を設定する関数
-    /// </summary>
     public void Launch(Vector3 start, Vector3 target)
     {
-        transform.position = start;
-        targetWorldPos = target;
-        isInitialized = true;
+        remainingTicks = ticksInitialized;
+        transform.position = new Vector3(start.x, start.y, 0f);
 
-        // Z軸を0に固定して計算のズレを防止
-        transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
-        targetWorldPos.z = 0f;
+        // ★ターゲットへの方向ベクトルを計算（Zは0に固定）
+        Vector3 targetPos = new Vector3(target.x, target.y, 0f);
+        direction = (targetPos - transform.position).normalized;
+
+        isInitialized = true;
     }
 
-
-    /// <summary>
-    /// ★【新設】GameManagerから1Tick（0.1秒）ごとに呼び出される判定ロジック
-    /// </summary>
     public void UpdateProjectileTick()
     {
         if (!isInitialized) return;
 
-        // 目的地に向かって直線移動（壁を貫通）
-        transform.position = Vector3.MoveTowards(transform.position, targetWorldPos, speed);
+        // ★目的地に関係なく、常にdirection方向に進み続ける
+        transform.position += direction * speed;
 
         remainingTicks--;
         if (remainingTicks <= 0)
         {
-            DeactivateProjectile(); // ★Destroyではなく非アクティブ化
+            DeactivateProjectile();
             return;
         }
 
@@ -53,12 +47,6 @@ public class ParanoiaProjectile : MonoBehaviour
         {
             lastCheckedGrid = currentGrid;
             CheckHitAgents(currentGrid);
-        }
-
-        if (Vector3.Distance(transform.position, targetWorldPos) <= 0.1f)
-        {
-            DeactivateProjectile(); // ★Destroyではなく非アクティブ化
-            return;
         }
     }
 
@@ -117,6 +105,7 @@ public class ParanoiaProjectile : MonoBehaviour
         state.isInitialized = this.isInitialized;
         state.owner = this.owner;
         state.lastCheckedGrid = this.lastCheckedGrid;
+        state.direction = this.direction; // ★追加
 
         return state;
     }
@@ -133,6 +122,7 @@ public class ParanoiaProjectile : MonoBehaviour
         this.isInitialized = state.isInitialized;
         this.owner = state.owner;
         this.lastCheckedGrid = state.lastCheckedGrid;
+        this.direction = state.direction; // ★追加
 
     }
 }

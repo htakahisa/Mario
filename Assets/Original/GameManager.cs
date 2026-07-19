@@ -19,6 +19,7 @@ public class GameManager : MonoBehaviour
     // ★ 配列ではなく List<Agent> に完全統一。初期化時に一度だけ取得する
     [SerializeField] private List<Agent> allAgents = new List<Agent>();
     public List<Agent> AllAgents => allAgents;
+    public List<Agent> playeredAgents;
 
     private SpikeManager spikeManager;
 
@@ -35,6 +36,14 @@ public class GameManager : MonoBehaviour
         // ★ 開始時にマップ上の全エージェントを一度だけリストに登録・固定する
         allAgents.Clear();
         allAgents.AddRange(Object.FindObjectsByType<Agent>(FindObjectsSortMode.None));
+        foreach (var agent in AllAgents)
+        {
+            if (agent.isPlayer) 
+            {
+                playeredAgents.Add(agent); 
+            }
+        }
+        OrganizedList.Instance.initialize();
     }
 
     /// <summary>

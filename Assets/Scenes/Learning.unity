@@ -2323,9 +2323,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 198bfb481af71944c89ae5ad28cb8398, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameStateSerializer
-  experimentName: EdwardGaming_15
+  experimentName: EdwardGaming_16
   startFromScratch: 0
-  localMapRadius: 10
+  localMapRadius: 2
 --- !u!114 &949859777 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2845544102720679425, guid: ddf6784a4632cf74589664f2879f0e54,

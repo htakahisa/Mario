@@ -35,6 +35,7 @@ public class Agent : MonoBehaviour
     public float hsRate = 0.3f;       // ヘッドショット率 (30%)
     public int hsDamage = 150;        // ヘッドショットダメージ (150)
     public float avoidRate = 0.0f;
+    public int IQ = 100;
 
     [Header("--- Ability Settings ---")]
     public int paranoiaCharges = 1; // パラノイアの所持数（初期値1回）
@@ -89,6 +90,7 @@ public class Agent : MonoBehaviour
 
     private MapManager mapManager;
     private int shotTickTimer = 0; // ★次に弾を撃つまでのTickタイマー
+    private Collider2D collider;
 
     public enum BotRole { Default, Entry, Lurker }
     [Header("--- Tactical AI Role ---")]
@@ -129,6 +131,7 @@ public class Agent : MonoBehaviour
 
     void Start()
     {
+        collider = GetComponentInChildren<Collider2D>();
         mapManager = MapManager.Instance;
         spriteRenderer = GetComponent<SpriteRenderer>();
         spriteRenderer.color = Color.white;
@@ -166,13 +169,19 @@ public class Agent : MonoBehaviour
     {
         if (isDead)
         {
-            spriteRenderer.color = Color.clear;
-            teamRenderer.color = Color.clear;
-            hpRenderer.color = Color.clear;
+            spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0);
+            teamRenderer.color = new Color(teamRenderer.color.r, teamRenderer.color.g, teamRenderer.color.b, 0);
+            hpRenderer.color = new Color(hpRenderer.color.r, hpRenderer.color.g, hpRenderer.color.b, 0);
+            hpRenderer.GetComponentInChildren<SpriteMask>().enabled = false;
+            collider.enabled = false;
             Transform indicator = transform.Find("SpikeIndicator");
             if (indicator != null) Destroy(indicator.gameObject);
 
             return;
+        }
+        else
+        {
+            collider.enabled = true;
         }
         
         // 1. HPバーのマスク位置を滑らかに更新
@@ -381,22 +390,21 @@ public class Agent : MonoBehaviour
             // 現在のターゲットマスにほぼ到着しているなら、次の1歩へコマを進める
             if (Vector3.Distance(transform.position, targetWorldPos) <= 0.05f)
             {
-                if (mapManager.IsWalkableForPathfinding(currentPath[0], this))
+                if (mapManager.IsWalkable(currentPath[0]))
                 {
                     if (mapManager.IsThereOnlyTargetPos(currentPath[0], this))
                     {
                         gridPosition = nextGridPosition;
                         nextGridPosition = currentPath[0];
                         currentPath.RemoveAt(0);
-                    }
+                    } 
                 }
+                
             }
         }
         else
         {
-            // パスが空で、かつ次の目的地に到着していたら移動終了
-            Vector3 targetWorldPos = new Vector3(nextGridPosition.x + 0.5f, nextGridPosition.y + 0.5f, transform.position.z);
-            if (Vector3.Distance(transform.position, targetWorldPos) <= 0.05f)
+            if (!isMovingAnimation)
             {
                 gridPosition = nextGridPosition;
                 isMoving = false;
@@ -927,19 +935,23 @@ public class Agent : MonoBehaviour
             Color currentColor = spriteRenderer.color;
             teamRenderer.color = GetTeamColor();
             hpRenderer.color = new Color(hpRenderer.color.r, hpRenderer.color.g, hpRenderer.color.b, 1f);
+            hpRenderer.GetComponentInChildren<SpriteMask>().enabled = true;
             spriteRenderer.color = new Color(currentColor.r, currentColor.g, currentColor.b, 1f);
+            collider.enabled = true;
         }
         else
         {
-            teamRenderer.color = Color.clear;
-            hpRenderer.color = Color.clear;
-            spriteRenderer.color = Color.clear;
+            teamRenderer.color = new Color(teamRenderer.color.r, teamRenderer.color.g, teamRenderer.color.b, 0);
+            hpRenderer.color = new Color(hpRenderer.color.r, hpRenderer.color.g, hpRenderer.color.b, 0);
+            spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0);
+            hpRenderer.GetComponentInChildren<SpriteMask>().enabled = false;
+            collider.enabled = false;
         }
     }
 
     public Color GetTeamColor()
     {
-        if (isPlayer)
+        if (!isEnemy)
         {
             return Color.blue;
         }

@@ -78,6 +78,8 @@ public class GameStateSerializer : MonoBehaviour
                     paranoia_charges = agent.paranoiaCharges,
                     recon_bolt_charges = agent.reconBoltCharges,
                     is_in_plant_zone = mapManager != null && mapManager.IsPlantableArea(agent.gridPosition),
+                    is_planting = spikeManager != null && spikeManager.currentState == SpikeManager.SpikeState.Planting && agent.hasSpike,
+                    is_defusing = spikeManager != null && spikeManager.defusingAgent == agent,
                     visible_enemies_id = new List<int>(),
                     // :fire:【修正】ローカルマップデータを取得して代入
                     local_map = GetLocalMapData(agent.gridPosition, mapManager)
@@ -143,24 +145,13 @@ public class GameStateSerializer : MonoBehaviour
         var localSubMap = new List<LocalGridData>();
         if (mm == null) return localSubMap;
 
-        for (int x = -localMapRadius; x <= localMapRadius; x++)
+        for (int y = -localMapRadius; y <= localMapRadius; y++)
         {
-            for (int y = -localMapRadius; y <= localMapRadius; y++)
+            for (int x = -localMapRadius; x <= localMapRadius; x++)
             {
                 Vector3Int targetPos = new Vector3Int(centerPos.x + x, centerPos.y + y, 0);
-
-                // 🚨【修正】IsWalkableが「歩ける場所＝True」なら、その『逆（!）』が壁（True）になる
-                // もしIsWalkableが最初から「壁＝True」のメソッドなら ! は不要です
-                bool isWalkable = mm.IsWalkable(targetPos);
-                bool isWall = !isWalkable;
-
-                localSubMap.Add(new LocalGridData
-                {
-                    offset_x = x,
-                    offset_y = y,
-                    is_wall = isWall,
-                    is_cover = isWall // 壁は射線を遮るカバーオブジェクトとしても扱う
-                });
+                bool isWall = !mm.IsWalkable(targetPos);
+                localSubMap.Add(new LocalGridData { offset_x = x, offset_y = y, is_wall = isWall, is_cover = isWall });
             }
         }
         return localSubMap;
@@ -211,6 +202,8 @@ public class GameStateSerializer : MonoBehaviour
         public int recon_bolt_charges;
         public bool is_dead;
         public bool is_in_plant_zone;
+        public bool is_planting;
+        public bool is_defusing;
         public List<int> visible_enemies_id;
         public List<LocalGridData> local_map;
     }
